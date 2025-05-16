@@ -14,6 +14,7 @@
 # 1.0.0 Initial version adapted from Make_GLEAlarm
 # 1.1.0 Add GOES data
 # 1.2.0 Add vertical alarm lines
+# 1.3.0 Add vertical baselines
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -68,10 +69,11 @@ def main(argv):
    Inpath = '.'      #input path
    Outpath = '.'     #output path
    urlalarm='./GLE_Alarm.png' #DEBUG
-   initMinutes=30
+   initMinutes=90
    frameNum = 0
    fileGOESProton =''
    fileGOESXray =''
+   showBaselines = False
 
    ########################
    ### ARGUMENTS
@@ -85,9 +87,10 @@ def main(argv):
    strinfo=strinfo+'-e <minutes>\n'
    strinfo=strinfo+'-p <GOES Proton file>\n'
    strinfo=strinfo+'-x <GOES X-ray file>\n'
+   strinfo=strinfo+'-b (show baseline)\n'
 
    try:
-      opts, args = getopt.getopt(argv,"hr:s:e:i:o:p:x:")
+      opts, args = getopt.getopt(argv,"hr:s:e:i:o:p:x:b")
    except getopt.GetoptError:
       print(strinfo)
       sys.exit(2)
@@ -112,6 +115,8 @@ def main(argv):
          fileGOESProton = arg     #GOES Proton file
       elif opt in ("-x"):
          fileGOESXray = arg     #GOES X-ray file
+      elif opt in ("-b"):
+         showBaselines = True     #graph baselines
 
 
    if len(opts) <  1:
@@ -129,7 +134,7 @@ def main(argv):
    nm=      ['in','fs','pe','na','ne','th','sp','sp','mc','jb']
    nmdbtag= ['INVK','FSMT','PWNK','NAIN','NEWK','THUL','SOPO','SOPB','MCMU','JBGO']
    Labels=  ['Inuvik','Fort Smith','Peawanuck','Nain','Newark','Thule','South Pole','South Pole - bare','McMurdo','Jang Bogo']
-   InAlert= [1       ,1           ,1          ,1     ,0       ,1      ,1                       ,0                  ,1        ,0          ]
+   InAlert= [1       ,1           ,1          ,1     ,1       ,1      ,1                       ,0                  ,1        ,0          ]
    sFact= ['','',' *2','',' *2','',' /2','','','']
    Fact=  [1.,1.,2.   ,1.,2.    ,1.,0.5 ,1.,1.,1.]
 
@@ -143,7 +148,8 @@ def main(argv):
    lenGP=0
    lenGX=0
 
-   df = pd.read_csv('{0:s}/GLE_Day_{1:s}.txt'.format(
+   # df = pd.read_csv('{0:s}/GLE_Day_{1:s}.txt'.format(
+   df = pd.read_csv('{0:s}/GLE_Day_{1:s}.csv'.format(
                      Outpath,startDay.strftime("%Y%m%d")),
                      sep=',',date_format='%y/%m/%d %H:%M:%S',
                      index_col=0)
@@ -291,8 +297,8 @@ def main(argv):
    yminI=-5.
 
    for i in range(N):
-      if df[nmdbtag[i]+'T'].max()>ymaxT: ymaxT=df[nmdbtag[i]+'T'].max()
-      if df[nmdbtag[i]+'T'].min()<yminT: yminT=df[nmdbtag[i]+'T'].min()
+      if (Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(Fact[i]*df[nmdbtag[i]+'T'].max())
+      if (Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(Fact[i]*df[nmdbtag[i]+'T'].min())
       # if ymaxT > 20000: print(nmdbtag[i])
       if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
       else:
@@ -322,6 +328,7 @@ def main(argv):
    pAll=5+pG
    LastStatus=0
    fig=plt.figure(figsize=(14, 11), dpi=80)
+   baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
    for r in range(initMinutes, endMinutes-startMinutes) :
    # for r in range(endMinutes-startMinutes-1, endMinutes-startMinutes) :
 
@@ -482,6 +489,12 @@ def main(argv):
          if dfCur.index.values[-1] >= alarmLines[i]:
             axes.axvline(alarmLines[i],color=alarmColors[i])
             axesT.axvline(alarmLines[i],color=alarmColors[i])
+      if showBaselines :
+         for i in range(len(baselines)):
+            axes.axvline(baselines[i],color='green')
+            axesT.axvline(baselines[i],color='green')
+      if (3 > dfCur.iloc[-1]['Status']) :
+         baselines = [df.index[r-85],df.index[r-10] ]
 
       plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
       plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
