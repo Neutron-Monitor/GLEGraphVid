@@ -15,6 +15,7 @@
 # 1.1.0 Add GOES data
 # 1.2.0 Add vertical alarm lines
 # 1.3.0 Add vertical baselines
+# 1.4.0 Add margins to limits
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -69,7 +70,7 @@ def main(argv):
    Inpath = '.'      #input path
    Outpath = '.'     #output path
    urlalarm='./GLE_Alarm.png' #DEBUG
-   initMinutes=90
+   initMinutes=30
    frameNum = 0
    fileGOESProton =''
    fileGOESXray =''
@@ -147,6 +148,7 @@ def main(argv):
 
    lenGP=0
    lenGX=0
+   limMargin = 0.05
 
    # df = pd.read_csv('{0:s}/GLE_Day_{1:s}.txt'.format(
    df = pd.read_csv('{0:s}/GLE_Day_{1:s}.csv'.format(
@@ -297,8 +299,8 @@ def main(argv):
    yminI=-5.
 
    for i in range(N):
-      if (Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(Fact[i]*df[nmdbtag[i]+'T'].max())
-      if (Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(Fact[i]*df[nmdbtag[i]+'T'].min())
+      if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
+      if (1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())
       # if ymaxT > 20000: print(nmdbtag[i])
       if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
       else:
@@ -310,19 +312,19 @@ def main(argv):
       yminGP=0.1
       pG=1
       # print(dfGP['p3_flux_ic'].max())
-      if dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p3_flux_ic'].max()
-      # if dfGP['p3_flux_ic'].min()<yminGP: yminGP=dfGP'p3_flux_ic'].min()
-      if dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p7_flux_ic'].max()
-      # if dfGP['p7_flux_ic'].min()<yminGP: yminGP=dfGP['p7_flux_ic'].min()
+      if (1.+limMargin)*dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p3_flux_ic'].max()
+      if (1.-limMargin)*dfGP['p3_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p3_flux_ic'].min()
+      if (1.+limMargin)*dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p7_flux_ic'].max()
+      if (1.-limMargin)*dfGP['p7_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p7_flux_ic'].min()
 
 
    if lenGX>0:
       ymaxGX=1e-3
-      yminGX=1e-8
-      # if dfGX['xs'].max()>ymaxGX: ymaxGX=dfGX['xs'].max()
-      # if dfGX['xs'].min()<yminGX: yminGX=dfGX'xs'].min()
-      if dfGX['xl'].max()>ymaxGX: ymaxGX=2*dfGX['xl'].max()
-      # if dfGP['xl'].min()<yminGP: yminGP=dfGP['xl'].min()
+      yminGX=1e-4
+      # if (1.+10*limMargin)*dfGX['xs'].max()>ymaxGX: ymaxGX=(10.+10*limMargin)*dfGX['xs'].max()
+      # if (1.-10*limMargin)*dfGX['xs'].min()<yminGX: yminGX=(1.-10*limMargin)*dfGX['xs'].min()
+      if (1.+limMargin)*dfGX['xl'].max()>ymaxGX: ymaxGX=(1.+limMargin)*dfGX['xl'].max()
+      if (1.-limMargin)*dfGX['xl'].min()<yminGX: yminGX=(1.-limMargin)*dfGX['xl'].min()
 
       pG+=1
    pAll=5+pG
@@ -353,9 +355,9 @@ def main(argv):
          # if df[nmdbtag[i]+'T'].max()>ymax: ymax=df[nmdbtag[i]+'T'].max()
          # if df[nmdbtag[i]+'T'].min()<ymin: ymin=df[nmdbtag[i]+'T'].min()
 
-      plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
-      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
+      # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
       axesT.xaxis.set_major_locator(mdates.HourLocator(interval=1))
       axesT.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
@@ -364,6 +366,9 @@ def main(argv):
       axesT.set_xlim(startTime,endTime)
       axesT.set_ylim(yminT,ymaxT-1)
       axesT.set_ylabel('Rate [count / minute]\n3-min moving average',fontsize=fontsize+1)
+      plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
 
       plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
 
@@ -382,7 +387,10 @@ def main(argv):
 
       # plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='in',length=6)
       # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
-      # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='out',length=6)
+      plt.tick_params(axis='x', which='minor', labelsize=0,direction='out',length=3)
+      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
       axes.xaxis.set_major_locator(mdates.HourLocator(interval=1))
       axes.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
@@ -409,15 +417,33 @@ def main(argv):
       axesal = fig.add_subplot(pAll,1,(pAll-4,pAll-4),sharex=axesT)
       dfStatus = dfCur[dfCur['Status']==3]
       # print(dfStatus) #DEBUG
+      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=0)
+      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       axesal.plot(dfStatus.index.values,3*np.ones(len(dfStatus)),'o',color='red',label=Status[3])
       dfStatus = dfCur[dfCur['Status']==2]
+      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       axesal.plot(dfStatus.index.values,2*np.ones(len(dfStatus)),'o',color='orange',label=Status[2])
       dfStatus = dfCur[dfCur['Status']==1]
+      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       axesal.plot(dfStatus.index.values,1*np.ones(len(dfStatus)),'o',color='blue',label=Status[1])
       dfStatus = dfCur[dfCur['Status']==0]
+      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       axesal.plot(dfStatus.index.values,0*np.ones(len(dfStatus)),'o',color='gray',label=Status[0])
       axesal.set_ylim(0,3.75)
-      axesal.set_ylabel('Alarm Level',fontsize=fontsize)
+      axesal.set_ylabel('Alarm Level',fontsize=fontsize+1)
+
+      plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+      plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+      # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
       # axesal.plot(df[df['Status']==3]['Time'],3*np.ones(len(df[df['Status']==3])),'o',color='red',label=Status[3])
       # axesal.plot(df[df['Status']==2]['Time'],2*np.ones(len(df[df['Status']==2])),'o',color='orange',label=Status[2])
       # axesal.plot(df[df['Status']==1]['Time'],1.*np.ones(len(df[df['Status']==1])),'o',color='blue',label=Status[1])
@@ -433,7 +459,7 @@ def main(argv):
          # axesGP.plot(df500['time_tag2'].to_numpy(),df500['flux'].to_numpy(),color='pink',label='>=500 MeV')
          plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
          plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-         # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+         plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
          # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
          plt.grid(axis='x',which='major',linewidth=0.5,linestyle='-',color='gray')
          plt.grid(axis='x',which='minor',linewidth=0.5,linestyle=':',color='gray')
@@ -496,12 +522,11 @@ def main(argv):
       if (3 > dfCur.iloc[-1]['Status']) :
          baselines = [df.index[r-85],df.index[r-10] ]
 
-      plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
 
       axesT.set_xticklabels([])
       axesal.set_xticklabels([])
+      axesal.set_yticks([])
+      # axesal.set_yticklabels([])
       # plt.yticks(np.arange(0, 4, 1.0))
 
       # axesal.xaxis.set_major_locator(mdates.HourLocator(interval=1))
@@ -511,11 +536,13 @@ def main(argv):
       #          fontsize=fontsize,labelspacing=0.5,frameon=False)
 
       axesal.text(axesal.get_xlim()[0] + 0.02*(axesal.get_xlim()[1] -axesal.get_xlim()[0] ) ,
-               axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+               axesal.get_ylim()[1]- 0.15*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+               # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
                "Current: ", horizontalalignment='left', fontsize=fontsize+1,zorder=10)
 
       axesal.text(axesal.get_xlim()[0] + 0.11*(axesal.get_xlim()[1] -axesal.get_xlim()[0] ) ,
-               axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+               axesal.get_ylim()[1]- 0.15*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+               # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
                "{0:s}".format(Status[int(LastStatus)]), horizontalalignment='left',color=Statuscol[int(LastStatus)], fontsize=fontsize+1,zorder=10)
 
 
