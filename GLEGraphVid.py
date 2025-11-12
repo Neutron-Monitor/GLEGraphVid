@@ -2,9 +2,8 @@
 
 """
 ===========================================================================
-# Make_GLEAlarm
-# Script to analyze Neutron Monitor rates for Ground Level Enhacements (GLE)
-# events and email alerts
+# GLEGraphVid.py
+# Script to make Graphs of GLE to compile into a video
 #
 # Auhors:
 # Brian Lucas
@@ -16,6 +15,7 @@
 # 1.2.0 Add vertical alarm lines
 # 1.3.0 Add vertical baselines
 # 1.4.0 Add margins to limits
+# 1.5.0 Change margins using with 0 ymin as special case
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -35,7 +35,8 @@ from os import path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.ticker import ScalarFormatter
+# from matplotlib.ticker import ScalarFormatter
+import matplotlib.ticker as mticker
 from matplotlib.cbook import get_sample_data
 import matplotlib.gridspec as gridspec
 
@@ -148,7 +149,7 @@ def main(argv):
 
    lenGP=0
    lenGX=0
-   limMargin = 0.05
+   limMargin = 0.01
 
    # df = pd.read_csv('{0:s}/GLE_Day_{1:s}.txt'.format(
    df = pd.read_csv('{0:s}/GLE_Day_{1:s}.csv'.format(
@@ -293,44 +294,77 @@ def main(argv):
 
    fontsize=17
 
-   ymaxT=10000.
+   ymaxT=5000.
    yminT=0.
    ymaxI=10.
-   yminI=-5.
+   yminI=0.
 
    for i in range(N):
-      if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
-      if (1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())
+      if (Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(Fact[i]*df[nmdbtag[i]+'T'].max())
+      if (Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(Fact[i]*df[nmdbtag[i]+'T'].min())
+      # if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
+      # if (1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())
       # if ymaxT > 20000: print(nmdbtag[i])
       if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
       else:
          if 100.*(df[nmdbtag[i]+'Ith'].max()-1.)>ymaxI: ymaxI=100.*(df[nmdbtag[i]+'Ith'].max()-1.)
          if 100.*(df[nmdbtag[i]+'Ith'].min()-1.)<yminI: yminI=100.*(df[nmdbtag[i]+'Ith'].min()-1.)
+      ydeltaT=ymaxT-yminT
+      ymaxT+=(limMargin*ydeltaT)
+      yminT-=(limMargin*ydeltaT)
+      if 0.>yminT :
+         yminT=0.
+         
+      ydeltaI=ymaxI-yminI
+      ydeltaI/=100
+      ymaxI+=(limMargin*ydeltaI)
+      if 0.!=yminI :
+         yminI-=(limMargin*ydeltaI)
    pG=0
    if lenGP>0:
-      ymaxGP=200.
-      yminGP=0.1
+      ymaxGP=1.
+      yminGP=0.2
       pG=1
       # print(dfGP['p3_flux_ic'].max())
-      if (1.+limMargin)*dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p3_flux_ic'].max()
-      if (1.-limMargin)*dfGP['p3_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p3_flux_ic'].min()
-      if (1.+limMargin)*dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p7_flux_ic'].max()
-      if (1.-limMargin)*dfGP['p7_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p7_flux_ic'].min()
-
+      if dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p3_flux_ic'].max()
+      if dfGP['p3_flux_ic'].min()<yminGP: yminGP=dfGP['p3_flux_ic'].min()
+      if dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p7_flux_ic'].max()
+      if dfGP['p7_flux_ic'].min()<yminGP: yminGP=dfGP['p7_flux_ic'].min()
+      # if (1.+limMargin)*dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p3_flux_ic'].max()
+      # if (1.-limMargin)*dfGP['p3_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p3_flux_ic'].min()
+      # if (1.+limMargin)*dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p7_flux_ic'].max()
+      # if (1.-limMargin)*dfGP['p7_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p7_flux_ic'].min()
+      ydeltaGP=math.log10(ymaxGP)-math.log10(yminGP)
+      print(ydeltaGP) #DEBUG
+      ymaxGP=10**(math.log10(ymaxGP)+limMargin*ydeltaGP)
+      yminGP=10**(math.log10(yminGP)-limMargin*ydeltaGP)
+      if 2e-3>yminGP :
+         yminGP=2e-3
 
    if lenGX>0:
-      ymaxGX=1e-3
+      ymaxGX=1e-4
       yminGX=1e-4
       # if (1.+10*limMargin)*dfGX['xs'].max()>ymaxGX: ymaxGX=(10.+10*limMargin)*dfGX['xs'].max()
       # if (1.-10*limMargin)*dfGX['xs'].min()<yminGX: yminGX=(1.-10*limMargin)*dfGX['xs'].min()
-      if (1.+limMargin)*dfGX['xl'].max()>ymaxGX: ymaxGX=(1.+limMargin)*dfGX['xl'].max()
-      if (1.-limMargin)*dfGX['xl'].min()<yminGX: yminGX=(1.-limMargin)*dfGX['xl'].min()
+      if dfGX['xl'].max()>ymaxGX: ymaxGX=dfGX['xl'].max()
+      if dfGX['xl'].min()<yminGX: yminGX=dfGX['xl'].min()
+      # if (1.+limMargin)*dfGX['xl'].max()>ymaxGX: ymaxGX=(1.+limMargin)*dfGX['xl'].max()
+      # if (1.-limMargin)*dfGX['xl'].min()<yminGX: yminGX=(1.-limMargin)*dfGX['xl'].min()
+      ydeltaGX=math.log10(ymaxGX)-math.log10(yminGX)
+      ymaxGX=10**(math.log10(ymaxGX)+limMargin*ydeltaGX)
+      yminGX=10**(math.log10(yminGX)-limMargin*ydeltaGX)
+      if 2e-7>yminGX :
+         yminGX=2e-7
+
 
       pG+=1
    pAll=5+pG
    LastStatus=0
    fig=plt.figure(figsize=(14, 11), dpi=80)
    baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
+   
+   print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
+   
    for r in range(initMinutes, endMinutes-startMinutes) :
    # for r in range(endMinutes-startMinutes-1, endMinutes-startMinutes) :
 
@@ -356,7 +390,7 @@ def main(argv):
          # if df[nmdbtag[i]+'T'].min()<ymin: ymin=df[nmdbtag[i]+'T'].min()
 
       # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
+      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
       axesT.xaxis.set_major_locator(mdates.HourLocator(interval=1))
@@ -364,7 +398,13 @@ def main(argv):
       # axesT.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d\n%H:%M'))
       # axesT.set_xlim(now - timedelta(hours=12),now)
       axesT.set_xlim(startTime,endTime)
-      axesT.set_ylim(yminT,ymaxT-1)
+      # if (0==yminT):
+      #    axesT.set_ylim(yminT,(1.+limMargin)*ymaxT)
+      # else:
+      #    axesT.set_ymargin(limMargin)
+      #    axesT.set_ylim(yminT,ymaxT)
+      axesT.set_ylim(yminT,ymaxT)
+      # axesT.set_ylim(yminT,ymaxT-1)
       axesT.set_ylabel('Rate [count / minute]\n3-min moving average',fontsize=fontsize+1)
       plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
       plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
@@ -397,7 +437,13 @@ def main(argv):
       axes.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d\n%H:%M'))
       ###axes.set_xlim(now - timedelta(hours=8),now)
       axes.set_xlim(startTime,endTime)
-      axes.set_ylim(yminI,ymaxI-0.001)
+      # if (0==yminI):
+      #    axes.set_ylim(yminI,(1+limMargin)*ymaxI)
+      # else:
+      #    axes.set_ymargin(limMargin)
+         # axes.set_ylim(yminI,ymaxI)
+      axes.set_ylim(yminI,ymaxI)
+      # axes.set_ylim(yminI,ymaxI-0.001)
       axes.set_ylabel('Rate increase [%]\n(3-min tr. moving average)',fontsize=fontsize+1)
       # axes.axhline(y=dfCur.iloc[-1]['Status'],linewidth=0.5,linestyle='-',color='red')
       # axes.axhline(y=Level,linewidth=0.5,linestyle='-',color='red')
@@ -438,7 +484,8 @@ def main(argv):
       # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       axesal.plot(dfStatus.index.values,0*np.ones(len(dfStatus)),'o',color='gray',label=Status[0])
       axesal.set_ylim(0,3.75)
-      axesal.set_ylabel('Alarm Level',fontsize=fontsize+1)
+      # axesal.set_ylabel('Alarm Level',fontsize=fontsize+1)
+      axesal.set_ylabel('Alarm Level',fontsize=fontsize)
 
       plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
       plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
@@ -454,19 +501,32 @@ def main(argv):
 
       if lenGP > 0:
          axesGP = fig.add_subplot(pAll,1,(pAll-5,pAll-5),sharex=axesT)
+         axesGP.set_ylim(yminGP,ymaxGP)
+         # axesGP.yaxis.set_minor_locator(subs='auto')
+         axesGP.set_yscale('log')
+         # axesGP.yaxis.set_minor_locator(mticker.LogLocator( numticks=10, subs='auto'))
+         # print(axesGP.yaxis.get_tick_space()) #DEBUG
+         llGP=mticker.LogLocator(base=10.0, numticks=int(math.ceil(ydeltaGP)))#subs=np.arange(2, 10) * 0.1)
+         llmGP=mticker.LogLocator(base=10.0, numticks=int(math.ceil(ydeltaGP))*9, subs='auto')#subs=np.arange(2, 10) * 0.1)
+         axesGP.yaxis.set_major_locator(llGP)
+         axesGP.yaxis.set_minor_locator(llmGP)
+         # axesGP.yaxis.set_minor_formatter(mticker.LogFormatterMathtext(base=10.0,  labelOnlyBase=False))
+         axesGP.yaxis.set_major_formatter(mticker.LogFormatterMathtext(base=10.0,  labelOnlyBase=False,minor_thresholds=(0, 0)))
+         # print(axesGP.get_yticks()) #DEBUG
          axesGP.plot(dfGPCur.index.values,dfGPCur['p3_flux_ic'],color='darkred',label='>=10 MeV')
          axesGP.plot(dfGPCur.index.values,dfGPCur['p7_flux_ic'],color='darkblue',label='>=100 MeV')
          # axesGP.plot(df500['time_tag2'].to_numpy(),df500['flux'].to_numpy(),color='pink',label='>=500 MeV')
+         # axesGP.set_ymargin(10*limMargin)
+         # axesGP.yaxis.set_major_locator(mticker.LogLocator(  subs='auto'))
+         axesGP.set_ylabel('GOES\n Particles\n cm$^{-2}$s$^{-1}$sr$^{-1}$ ',fontsize=fontsize,color='k', multialignment='center')
          plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
          plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
          plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
-         # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
+         plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
+         # print(axesGP.yaxis.get_tick_params(which='minor')) #DEBUG
          plt.grid(axis='x',which='major',linewidth=0.5,linestyle='-',color='gray')
          plt.grid(axis='x',which='minor',linewidth=0.5,linestyle=':',color='gray')
          plt.grid(axis='y',which='major',linewidth=0.5,linestyle=':',color='gray')
-         axesGP.set_ylim(yminGP,ymaxGP)
-         axesGP.set_yscale('log')
-         axesGP.set_ylabel('GOES\n Particles\n cm$^{-2}$s$^{-1}$sr$^{-1}$ ',fontsize=fontsize,color='k', multialignment='center')
          # plt.legend(loc='upper right',fontsize=fontsize,ncol=1)
          plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
                fontsize=fontsize,labelspacing=0.5,frameon=False)
@@ -493,20 +553,23 @@ def main(argv):
          # axesGX.plot(dfGXCur.index.values,dfGXCur['xs'],color='green',label='XS')
          axesGX.plot(dfGXCur.index.values,dfGXCur['xl'],color='k',label='XL')
          # axesGP.plot(df500['time_tag2'].to_numpy(),df500['flux'].to_numpy(),color='pink',label='>=500 MeV')
-         plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-         plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-         # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
-         # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
-         plt.grid(axis='x',which='major',linewidth=0.5,linestyle='-',color='gray')
-         plt.grid(axis='x',which='minor',linewidth=0.5,linestyle=':',color='gray')
-         plt.grid(axis='y',which='major',linewidth=0.5,linestyle=':',color='gray')
+         # axesGX.set_ymargin(10*limMargin)
          axesGX.set_ylim(yminGX,ymaxGX)
          axesGX.set_yscale('log')
          axesGX.set_ylabel('GOES\n X-ray flux\n Watts m$^{-2}$ ',fontsize=fontsize,color='k', multialignment='center')
+         plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+         plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+         plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+         plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
+         plt.grid(axis='x',which='major',linewidth=0.5,linestyle='-',color='gray')
+         plt.grid(axis='x',which='minor',linewidth=0.5,linestyle=':',color='gray')
+         plt.grid(axis='y',which='major',linewidth=0.5,linestyle=':',color='gray')
          # plt.legend(loc='upper right',fontsize=fontsize,ncol=1)
          # plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
                # fontsize=fontsize,labelspacing=0.5,frameon=False)
          # print(pAll) #DEBUG
+         # print(axesGX.get_yticks()) #DEBUG
+         # print(axesGX.get_yticklabels()) #DEBUG
          # sys.exit() #DEBUG
 
          axesGX.set_xticklabels([])
@@ -551,6 +614,9 @@ def main(argv):
 
 
       plt.subplots_adjust(left=0.1, bottom=0.06, right=0.8, top=0.95, wspace=0, hspace=0.00)
+
+      # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
+      # print(axesT.yaxis.get_data_interval(),axes.yaxis.get_data_interval(),axesGP.yaxis.get_data_interval(),axesGX.yaxis.get_data_interval()) #DEBUG
 
       # fig.savefig('{0:s}/GLE_Alarm.png'.format(Outpath))
       fig.savefig('{0:s}/{1:s}/{2:04d}.png'.format(Outpath, startTime.strftime("%Y%m%d"), frameNum))
