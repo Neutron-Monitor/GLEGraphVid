@@ -16,6 +16,8 @@
 # 1.3.0 Add vertical baselines
 # 1.4.0 Add margins to limits
 # 1.5.0 Change margins using with 0 ymin as special case
+# 1.6.0 Change in stations
+# 1.7.0 Change in stations, handling of not in alert and tickmarks
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -71,11 +73,12 @@ def main(argv):
    Inpath = '.'      #input path
    Outpath = '.'     #output path
    urlalarm='./GLE_Alarm.png' #DEBUG
-   initMinutes=30
+   initMinutes=90
    frameNum = 0
    fileGOESProton =''
-   fileGOESXray =''
-   showBaselines = False
+   fileGOESXray ='' 
+   showBaselines = True
+   xTickMajorHours = 1
 
    ########################
    ### ARGUMENTS
@@ -133,17 +136,17 @@ def main(argv):
    ### Stations to read
    ########################
 
-   nm=      ['in','fs','pe','na','ne','th','sp','sp','mc','jb']
-   nmdbtag= ['INVK','FSMT','PWNK','NAIN','NEWK','THUL','SOPO','SOPB','MCMU','JBGO']
-   Labels=  ['Inuvik','Fort Smith','Peawanuck','Nain','Newark','Thule','South Pole','South Pole - bare','McMurdo','Jang Bogo']
-   InAlert= [1       ,1           ,1          ,1     ,1       ,1      ,1                       ,0                  ,1        ,0          ]
-   sFact= ['','',' *2','',' *2','',' /2','','','']
-   Fact=  [1.,1.,2.   ,1.,2.    ,1.,0.5 ,1.,1.,1.]
+   nm=      ['in','fs','pe','na','ne','th','sp','sp','mc','jb','','','','','','']
+   nmdbtag= ['INVK','FSMT','PWNK','NAIN','NEWK','THUL','SOPO','SOPB','MCMU','JBGO','MWSN','CVAN','DRHM','HLE1','LDVL','MTWS']
+   Labels=  ['Inuvik','Fort Smith','Peawanuck','Nain','Newark','Thule','South Pole','South Pole - bare','McMurdo','Jang Bogo','Mawson','ChangVan','Durham','Haleakalā','Leadville','Mt. Washington']
+   InAlert= [1       ,1           ,1          ,1     ,1       ,1      ,0           ,0                  ,0        ,0          ,0       ,0,0,0,0,0]
+   sFact= ['','',' *2','',' *2','',' /2','','','','','','','','','']
+   Fact=  [1.,1.,2.   ,1.,2.    ,1.,0.5 ,1.,1.,1.,1.,1.,1.,1.,1.,1.]
 
 
    #History from Makejson_ql.py
    #History= [0.597135,(0.598/0.94696),1.35333,0.59686,0.54518,0.57732*0.6,0.705,0.52308,0.52308]
-   History= [0.597135,0.598,1.35333,0.59686,0.54518,0.57732*0.6,0.52308,0.52308,0.705]
+   History= [0.597135,0.598,1.35333,0.59686,0.54518,0.57732*0.6,0.52308,0.52308,0.705,0.6,0.6,0.6,0.6,0.6,0.6]
    History=np.array(History)
    History=History/0.6
 
@@ -163,18 +166,18 @@ def main(argv):
 
    #Number of stations
    N= len(nm)
+   Nall = N
    Notused='$^{\dagger}$Not used'
    i=1
    while i < N:
       if not InAlert[i]:
          nm.append(nm.pop(i)    )
          nmdbtag.append(nmdbtag.pop(i))
-         Labels.append('$^{\dagger}'+Labels.pop(i) )
+         Labels.append('$^{\dagger}$'+Labels.pop(i) )
          InAlert.append(InAlert.pop(i))
          sFact.append(sFact.pop(i))
          Fact.append(Fact.pop(i))
          N-=1
-         #TODO add df analysis for no alert
       else : i+=1
    # print(nm)
    # print(nmdbtag)
@@ -296,7 +299,7 @@ def main(argv):
 
    ymaxT=5000.
    yminT=0.
-   ymaxI=10.
+   ymaxI=170.
    yminI=0.
 
    for i in range(N):
@@ -305,10 +308,11 @@ def main(argv):
       # if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
       # if (1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())
       # if ymaxT > 20000: print(nmdbtag[i])
-      if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
+      # if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
+      if False: pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
       else:
-         if 100.*(df[nmdbtag[i]+'Ith'].max()-1.)>ymaxI: ymaxI=100.*(df[nmdbtag[i]+'Ith'].max()-1.)
-         if 100.*(df[nmdbtag[i]+'Ith'].min()-1.)<yminI: yminI=100.*(df[nmdbtag[i]+'Ith'].min()-1.)
+         if 100.*(df[nmdbtag[i]+'Ith'].max()-1)>ymaxI: ymaxI=100.*(df[nmdbtag[i]+'Ith'].max()-1)
+         if 100.*(df[nmdbtag[i]+'Ith'].min()-1)<yminI: yminI=100.*(df[nmdbtag[i]+'Ith'].min()-1)
       ydeltaT=ymaxT-yminT
       ymaxT+=(limMargin*ydeltaT)
       yminT-=(limMargin*ydeltaT)
@@ -363,7 +367,7 @@ def main(argv):
    fig=plt.figure(figsize=(14, 11), dpi=80)
    baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
    
-   print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
+   # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
    
    for r in range(initMinutes, endMinutes-startMinutes) :
    # for r in range(endMinutes-startMinutes-1, endMinutes-startMinutes) :
@@ -388,13 +392,18 @@ def main(argv):
          axesT.plot(dfCur.index.values,Fact[i]*dfCur[nmdbtag[i]+'T'],'-',linewidth=0.8,label='{0:s} {1:s}'.format(Labels[i],sFact[i]))
          # if df[nmdbtag[i]+'T'].max()>ymax: ymax=df[nmdbtag[i]+'T'].max()
          # if df[nmdbtag[i]+'T'].min()<ymin: ymin=df[nmdbtag[i]+'T'].min()
+      for i in range(N,Nall):
+         if(0 < df[nmdbtag[i]].count()): 
+            axesT.plot(dfCur.index.values,Fact[i]*dfCur[nmdbtag[i]+'T'],'-',linewidth=0.8,label='{0:s} {1:s}'.format(Labels[i],sFact[i]))
+            
+
 
       # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
       # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
       # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
-      axesT.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-      axesT.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
+      axesT.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
+      axesT.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
       # axesT.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d\n%H:%M'))
       # axesT.set_xlim(now - timedelta(hours=12),now)
       axesT.set_xlim(startTime,endTime)
@@ -413,7 +422,7 @@ def main(argv):
       plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
 
       plt.legend(bbox_to_anchor=(1.01,0.525), loc="center left", borderaxespad=0,
-               fontsize=fontsize,labelspacing=0.5,frameon=False)
+               fontsize=fontsize,labelspacing=0.0,frameon=False)
       # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
       # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} {1:s} {2:s} UT'.format(df.index.values[r],r'$@$',r.strftime("%H:%M:%S")),fontsize=fontsize)
 
@@ -423,6 +432,10 @@ def main(argv):
 
       for i in range(N):
          axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
+      for i in range(N,Nall):
+         if(0 < df[nmdbtag[i]].count()): 
+            axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
+
 
 
       # plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='in',length=6)
@@ -432,8 +445,8 @@ def main(argv):
       plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
       # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
-      axes.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-      axes.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
+      axes.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
+      axes.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
       axes.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d\n%H:%M'))
       ###axes.set_xlim(now - timedelta(hours=8),now)
       axes.set_xlim(startTime,endTime)
@@ -450,7 +463,7 @@ def main(argv):
 
       plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
       plt.legend(bbox_to_anchor=(1.01,0.525), loc="center left", borderaxespad=0,
-               fontsize=fontsize,labelspacing=0.5,frameon=False)
+               fontsize=fontsize,labelspacing=0.0,frameon=False)
       #plt.title('GLE Alarm from Bartol Neutron Monitors - Last update: {0:s} {1:s} {2:s} UT'.format(now.strftime("%Y-%m-%d"),r'$@$',now.strftime("%H:%M:%S")),fontsize=fontsize)
       # plt.title('GLE Alarm from Bartol Neutron Monitors - Last update: {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
 
@@ -573,6 +586,8 @@ def main(argv):
          # sys.exit() #DEBUG
 
          axesGX.set_xticklabels([])
+
+      axes.axhline(y=4,color='red')
 
       for i in range(len(alarmLines)):
          if dfCur.index.values[-1] >= alarmLines[i]:
