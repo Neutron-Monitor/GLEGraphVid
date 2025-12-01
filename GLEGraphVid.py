@@ -19,6 +19,7 @@
 # 1.6.0 Change in stations
 # 1.7.0 Change in stations, handling of not in alert and tickmarks
 # 1.8.0 Added different NM network awareness
+# 1.9.0 Step plot for network aware. Option to exclude rates plot
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -162,6 +163,7 @@ def main(argv):
    limMargin = 0.01
 
    networkAwareAlert = True
+   ratePlot = False
 
    # df = pd.read_csv('{0:s}/GLE_Day_{1:s}.txt'.format(
    df = pd.read_csv('{0:s}/GLE_Day_{1:s}.csv'.format(
@@ -307,28 +309,33 @@ def main(argv):
 
    fontsize=17
 
-   ymaxT=5000.
-   yminT=0.
+   pT=0
+   if (ratePlot):
+      ymaxT=5000.
+      yminT=0.
+      pT=2
    ymaxI=170.
    yminI=0.
 
    # for i in range(N):
    for i in range(Nall):
-      if (Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(Fact[i]*df[nmdbtag[i]+'T'].max())
-      if (Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(Fact[i]*df[nmdbtag[i]+'T'].min())
-      # if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
-      # if (1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())
-      # if ymaxT > 20000: print(nmdbtag[i])
-      # if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
+      if (ratePlot):
+         if (Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(Fact[i]*df[nmdbtag[i]+'T'].max())
+         if (Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(Fact[i]*df[nmdbtag[i]+'T'].min())
+         # if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
+         # if (1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(1.-limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].min())
+         # if ymaxT > 20000: print(nmdbtag[i])
+         # if df[nmdbtag[i]+'Ith'].isnull().values.any(): pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
       if False: pass #print('Null values in {0:s} during plotting'.format(nmdbtag[i]+'Ith'))
       else:
          if 100.*(df[nmdbtag[i]+'Ith'].max()-1)>ymaxI: ymaxI=100.*(df[nmdbtag[i]+'Ith'].max()-1)
          if 100.*(df[nmdbtag[i]+'Ith'].min()-1)<yminI: yminI=100.*(df[nmdbtag[i]+'Ith'].min()-1)
-      ydeltaT=ymaxT-yminT
-      ymaxT+=(limMargin*ydeltaT)
-      yminT-=(limMargin*ydeltaT)
-      if 0.>yminT :
-         yminT=0.
+      if (ratePlot):
+         ydeltaT=ymaxT-yminT
+         ymaxT+=(limMargin*ydeltaT)
+         yminT-=(limMargin*ydeltaT)
+         if 0.>yminT :
+            yminT=0.
          
       ydeltaI=ymaxI-yminI
       ydeltaI/=100
@@ -339,7 +346,7 @@ def main(argv):
    if lenGP>0:
       ymaxGP=1.
       yminGP=0.2
-      pG=1
+      pG+=1
       # print(dfGP['p3_flux_ic'].max())
       if dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p3_flux_ic'].max()
       if dfGP['p3_flux_ic'].min()<yminGP: yminGP=dfGP['p3_flux_ic'].min()
@@ -370,16 +377,8 @@ def main(argv):
       yminGX=10**(math.log10(yminGX)-limMargin*ydeltaGX)
       if 2e-7>yminGX :
          yminGX=2e-7
-
-
       pG+=1
-   pAll=5+pG
-   LastStatus=0
-   fig=plt.figure(figsize=(14, 11), dpi=80)
-   baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
-   
-   # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
-   
+
    if networkAwareAlert :
       df['Bartol_Above']= df[bartolFlags].sum(axis=1)
       print(df['Bartol_Above'].max())  #DEBUG
@@ -388,7 +387,20 @@ def main(argv):
       print(df['Extended_Above'].max())  #DEBUG
       df['Intl_Above']= df[intlFlags].sum(axis=1)
       print(df['Intl_Above'].max())  #DEBUG
+      ymaxAl = df[['Bartol_Above','Extended_Above','Intl_Above']].sum(axis=1).max()
+      ymaxAl = max(ymaxAl,3)
+      print("Max Flags = {0:d}".format(ymaxAl))  #DEBUG
+
       df.to_csv('./GLETemp.csv')  #DEBUG
+
+   # pAll=5+pG
+   pAll=3+pG+pT
+   LastStatus=0
+   fig=plt.figure(figsize=(14, 11), dpi=80)
+   baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
+   
+   # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
+   
 
    for r in range(initMinutes, endMinutes-startMinutes) :
    # for r in range(endMinutes-startMinutes-1, endMinutes-startMinutes) :
@@ -404,48 +416,49 @@ def main(argv):
          # print(dfGXCur)  #DEBUG
          # print(dfGXCur.info(verbose=True, show_counts=True))  #DEBUG
 
+      if (ratePlot):
+         # axesT = fig.add_subplot(5,1,(2,3))
+         axesT = fig.add_subplot(pAll,1,(pAll-3,pAll-2))
+         # axesT = fig.add_subplot(pAll,1,(pAll-2,pAll-1))
 
-      # axesT = fig.add_subplot(5,1,(2,3))
-      axesT = fig.add_subplot(pAll,1,(pAll-3,pAll-2))
-
-      for i in range(N):
-         # axesT.plot(df['Time'],Fact[i]*df[nmdbtag[i]+'T'],'-',linewidth=0.8,label=r'{0:s} {1:s}'.format(Labels[i],sFact[i]))
-         axesT.plot(dfCur.index.values,Fact[i]*dfCur[nmdbtag[i]+'T'],'-',linewidth=0.8,label='{0:s} {1:s}'.format(Labels[i],sFact[i]))
-         # if df[nmdbtag[i]+'T'].max()>ymax: ymax=df[nmdbtag[i]+'T'].max()
-         # if df[nmdbtag[i]+'T'].min()<ymin: ymin=df[nmdbtag[i]+'T'].min()
-      for i in range(N,Nall):
-         if(0 < dfCur[nmdbtag[i]+'T'].count()): 
+         for i in range(N):
+            # axesT.plot(df['Time'],Fact[i]*df[nmdbtag[i]+'T'],'-',linewidth=0.8,label=r'{0:s} {1:s}'.format(Labels[i],sFact[i]))
             axesT.plot(dfCur.index.values,Fact[i]*dfCur[nmdbtag[i]+'T'],'-',linewidth=0.8,label='{0:s} {1:s}'.format(Labels[i],sFact[i]))
-            
+            # if df[nmdbtag[i]+'T'].max()>ymax: ymax=df[nmdbtag[i]+'T'].max()
+            # if df[nmdbtag[i]+'T'].min()<ymin: ymin=df[nmdbtag[i]+'T'].min()
+         for i in range(N,Nall):
+            if(0 < dfCur[nmdbtag[i]+'T'].count()): 
+               axesT.plot(dfCur.index.values,Fact[i]*dfCur[nmdbtag[i]+'T'],'-',linewidth=0.8,label='{0:s} {1:s}'.format(Labels[i],sFact[i]))
+               
 
 
-      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
-      # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
+         # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+         # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
+         # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
-      axesT.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
-      axesT.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
-      # axesT.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d\n%H:%M'))
-      # axesT.set_xlim(now - timedelta(hours=12),now)
-      axesT.set_xlim(startTime,endTime)
-      # if (0==yminT):
-      #    axesT.set_ylim(yminT,(1.+limMargin)*ymaxT)
-      # else:
-      #    axesT.set_ymargin(limMargin)
-      #    axesT.set_ylim(yminT,ymaxT)
-      axesT.set_ylim(yminT,ymaxT)
-      # axesT.set_ylim(yminT,ymaxT-1)
-      axesT.set_ylabel('Rate [count / minute]\n3-min moving average',fontsize=fontsize+1)
-      plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+         axesT.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
+         axesT.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
+         # axesT.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d\n%H:%M'))
+         # axesT.set_xlim(now - timedelta(hours=12),now)
+         axesT.set_xlim(startTime,endTime)
+         # if (0==yminT):
+         #    axesT.set_ylim(yminT,(1.+limMargin)*ymaxT)
+         # else:
+         #    axesT.set_ymargin(limMargin)
+         #    axesT.set_ylim(yminT,ymaxT)
+         axesT.set_ylim(yminT,ymaxT)
+         # axesT.set_ylim(yminT,ymaxT-1)
+         axesT.set_ylabel('Rate [count / minute]\n3-min moving average',fontsize=fontsize+1)
+         plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+         plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+         plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
 
-      plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
+         plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
 
-      plt.legend(bbox_to_anchor=(1.01,0.525), loc="center left", borderaxespad=0,
-               fontsize=fontsize,labelspacing=0.0,frameon=False)
-      # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
-      # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} {1:s} {2:s} UT'.format(df.index.values[r],r'$@$',r.strftime("%H:%M:%S")),fontsize=fontsize)
+         plt.legend(bbox_to_anchor=(1.01,0.525), loc="center left", borderaxespad=0,
+                  fontsize=fontsize,labelspacing=0.0,frameon=False)
+         # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
+         # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} {1:s} {2:s} UT'.format(df.index.values[r],r'$@$',r.strftime("%H:%M:%S")),fontsize=fontsize)
 
       # axes = fig.add_subplot(5,1,(4,5),sharex=axesT)
       axes = fig.add_subplot(pAll,1,(pAll-1,pAll))
@@ -494,7 +507,8 @@ def main(argv):
 
 
       # axesal = fig.add_subplot(5,1,(1,1),sharex=axes)
-      axesal = fig.add_subplot(pAll,1,(pAll-4,pAll-4),sharex=axesT)
+      # axesal = fig.add_subplot(pAll,1,(pAll-4,pAll-4),sharex=axesT)
+      axesal = fig.add_subplot(pAll,1,(pAll-(2+pT),pAll-(2+pT)),sharex=axes)
       dfStatus = dfCur[dfCur['Status']==3]
       # print(dfStatus) #DEBUG
       # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
@@ -504,12 +518,16 @@ def main(argv):
       if networkAwareAlert :
          # axesal.bar(df.index.values, df['Bartol_Above'], label='Bartol Simpson')
          # axesal.plot(df.index.values, df['Bartol_Above'], label='Bartol Simpson')
-         axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above'],dfCur['Intl_Above']] , labels=['Current', 'Full Simpson', 'International'])
+         axesal.set_ylim(0,ymaxAl+0.75)
+         axesal.fill_between(x=df.index.values, y1=0, y2=0.5, color='lightgrey', alpha=0.2)
+         axesal.fill_between(x=df.index.values, y1=0.5, y2=1.5, color='lightblue', alpha=0.2)
+         axesal.fill_between(x=df.index.values, y1=1.5, y2=2.5, color='lightyellow', alpha=0.2)
+         axesal.fill_between(x=df.index.values, y1=2.5, y2=ymaxAl+0.75, color='pink', alpha=0.2)
+         axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above'],dfCur['Intl_Above']] , step="post", labels=['Current', 'Full Simpson', 'International'])
          # axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above']] , labels=['Bartol Simpson', 'Extended Simpson'])
          # axesal.bar(dfCur.index.values, dfCur['Bartol_Above'],label='Bartol Simpson')
          # axesal.bar(df.index.values, df['Bartol_Above'], bottom=df['Bartol_Above'], label='Extended Simpson')
          # axesal.bar(df.index.values, df['Bartol_Above'], bottom=df['Bartol_Above']+df['Extended_Above'], label='International')
-
       else :
          
          axesal.plot(dfStatus.index.values,3*np.ones(len(dfStatus)),'o',color='red',label=Status[3])
@@ -545,7 +563,8 @@ def main(argv):
                fontsize=fontsize,labelspacing=0.5,frameon=False)
 
       if lenGP > 0:
-         axesGP = fig.add_subplot(pAll,1,(pAll-5,pAll-5),sharex=axesT)
+         # axesGP = fig.add_subplot(pAll,1,(pAll-5,pAll-5),sharex=axesT)
+         axesGP = fig.add_subplot(pAll,1,(pAll-(3+pT),pAll-(3+pT)),sharex=axes)
          axesGP.set_ylim(yminGP,ymaxGP)
          # axesGP.yaxis.set_minor_locator(subs='auto')
          axesGP.set_yscale('log')
@@ -594,7 +613,8 @@ def main(argv):
             # axes.text(enddisp,1e-6,' C',fontsize=fontsize,color='k',verticalalignment='center', horizontalalignment='left')
             # axes.set_xlim(startdisp,enddisp)
    
-         axesGX = fig.add_subplot(pAll,1,(pAll-(4+pG),pAll-(4+pG)),sharex=axesT)
+         # axesGX = fig.add_subplot(pAll,1,(pAll-(4+pG),pAll-(4+pG)),sharex=axesT)
+         axesGX = fig.add_subplot(pAll,1,(pAll-(2+pT+pG),pAll-(2+pT+pG)),sharex=axes)
          # axesGX.plot(dfGXCur.index.values,dfGXCur['xs'],color='green',label='XS')
          axesGX.plot(dfGXCur.index.values,dfGXCur['xl'],color='k',label='XL')
          # axesGP.plot(df500['time_tag2'].to_numpy(),df500['flux'].to_numpy(),color='pink',label='>=500 MeV')
@@ -619,21 +639,22 @@ def main(argv):
 
          axesGX.set_xticklabels([])
 
-      axes.axhline(y=4,color='red')
+      # axes.axhline(y=4,color='red')
+      axes.fill_between(x=df.index.values, y1=yminI, y2=4.0, color='lightgrey', alpha=0.5)
 
       for i in range(len(alarmLines)):
          if dfCur.index.values[-1] >= alarmLines[i]:
             axes.axvline(alarmLines[i],color=alarmColors[i])
-            axesT.axvline(alarmLines[i],color=alarmColors[i])
+            if (ratePlot): axesT.axvline(alarmLines[i],color=alarmColors[i])
       if showBaselines :
          for i in range(len(baselines)):
             axes.axvline(baselines[i],color='green')
-            axesT.axvline(baselines[i],color='green')
+            if (ratePlot):axesT.axvline(baselines[i],color='green')
       if (3 > dfCur.iloc[-1]['Status']) :
          baselines = [df.index[r-85],df.index[r-10] ]
 
 
-      axesT.set_xticklabels([])
+      if (ratePlot):axesT.set_xticklabels([])
       axesal.set_xticklabels([])
       axesal.set_yticks([])
       # axesal.set_yticklabels([])
