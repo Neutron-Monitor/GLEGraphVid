@@ -18,6 +18,7 @@
 # 1.5.0 Change margins using with 0 ymin as special case
 # 1.6.0 Change in stations
 # 1.7.0 Change in stations, handling of not in alert and tickmarks
+# 1.8.0 Added different NM network awareness
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -72,7 +73,7 @@ def main(argv):
    ########################
    Inpath = '.'      #input path
    Outpath = '.'     #output path
-   urlalarm='./GLE_Alarm.png' #DEBUG
+   # urlalarm='./GLE_Alarm.png' #DEBUG
    initMinutes=90
    frameNum = 0
    fileGOESProton =''
@@ -139,10 +140,16 @@ def main(argv):
    nm=      ['in','fs','pe','na','ne','th','sp','sp','mc','jb','','','','','','']
    nmdbtag= ['INVK','FSMT','PWNK','NAIN','NEWK','THUL','SOPO','SOPB','MCMU','JBGO','MWSN','CVAN','DRHM','HLE1','LDVL','MTWS']
    Labels=  ['Inuvik','Fort Smith','Peawanuck','Nain','Newark','Thule','South Pole','South Pole - bare','McMurdo','Jang Bogo','Mawson','ChangVan','Durham','Haleakalā','Leadville','Mt. Washington']
-   InAlert= [1       ,1           ,1          ,1     ,1       ,1      ,0           ,0                  ,0        ,0          ,0       ,0,0,0,0,0]
+   InAlert= [1       ,1           ,1          ,1     ,1       ,1      ,1           ,0                  ,0        ,0          ,0       ,0,0,0,0,0]
    sFact= ['','',' *2','',' *2','',' /2','','','','','','','','','']
    Fact=  [1.,1.,2.   ,1.,2.    ,1.,0.5 ,1.,1.,1.,1.,1.,1.,1.,1.,1.]
 
+   bartolFlags = ['INVKF','FSMTF','PWNKF','NAINF','NEWKF','THULF', 'SOPOF']
+   extendedFlags = ['SOPBF','DRHMF','HLE1F','LDVLF','MTWSF']
+   intlFlags = list(map(lambda x: x + 'F', nmdbtag))
+   intlFlags = list(filter(lambda x: x not in bartolFlags, intlFlags))
+   intlFlags = list(filter(lambda x: x not in extendedFlags, intlFlags))
+   print(intlFlags)  #DEBUG
 
    #History from Makejson_ql.py
    #History= [0.597135,(0.598/0.94696),1.35333,0.59686,0.54518,0.57732*0.6,0.705,0.52308,0.52308]
@@ -153,6 +160,8 @@ def main(argv):
    lenGP=0
    lenGX=0
    limMargin = 0.01
+
+   networkAwareAlert = True
 
    # df = pd.read_csv('{0:s}/GLE_Day_{1:s}.txt'.format(
    df = pd.read_csv('{0:s}/GLE_Day_{1:s}.csv'.format(
@@ -198,6 +207,7 @@ def main(argv):
    # print(df.info(verbose=True, show_counts=True))  #DEBUG
 
    alarmLines = [df[df['Status']>=1].index[0],df[df['Status']>=2].index[0],df[df['Status']>=3].index[0]]
+   # alarmLines = [df[df['Status']>=1].index[0],df[df['Status']>=2].index[0],df[df['Status']>=3].index[0]]
    
    # print(alarmLines)  #DEBUG
    alarmColors = ['blue','orange','red']
@@ -302,7 +312,8 @@ def main(argv):
    ymaxI=170.
    yminI=0.
 
-   for i in range(N):
+   # for i in range(N):
+   for i in range(Nall):
       if (Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(Fact[i]*df[nmdbtag[i]+'T'].max())
       if (Fact[i]*df[nmdbtag[i]+'T'].min())<yminT: yminT=(Fact[i]*df[nmdbtag[i]+'T'].min())
       # if (1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())>ymaxT: ymaxT=(1.+limMargin)*(Fact[i]*df[nmdbtag[i]+'T'].max())
@@ -369,6 +380,16 @@ def main(argv):
    
    # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
    
+   if networkAwareAlert :
+      df['Bartol_Above']= df[bartolFlags].sum(axis=1)
+      print(df['Bartol_Above'].max())  #DEBUG
+      print(df['Bartol_Above'])  #DEBUG
+      df['Extended_Above']= df[extendedFlags].sum(axis=1)
+      print(df['Extended_Above'].max())  #DEBUG
+      df['Intl_Above']= df[intlFlags].sum(axis=1)
+      print(df['Intl_Above'].max())  #DEBUG
+      df.to_csv('./GLETemp.csv')  #DEBUG
+
    for r in range(initMinutes, endMinutes-startMinutes) :
    # for r in range(endMinutes-startMinutes-1, endMinutes-startMinutes) :
 
@@ -393,7 +414,7 @@ def main(argv):
          # if df[nmdbtag[i]+'T'].max()>ymax: ymax=df[nmdbtag[i]+'T'].max()
          # if df[nmdbtag[i]+'T'].min()<ymin: ymin=df[nmdbtag[i]+'T'].min()
       for i in range(N,Nall):
-         if(0 < df[nmdbtag[i]].count()): 
+         if(0 < dfCur[nmdbtag[i]+'T'].count()): 
             axesT.plot(dfCur.index.values,Fact[i]*dfCur[nmdbtag[i]+'T'],'-',linewidth=0.8,label='{0:s} {1:s}'.format(Labels[i],sFact[i]))
             
 
@@ -433,7 +454,7 @@ def main(argv):
       for i in range(N):
          axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
       for i in range(N,Nall):
-         if(0 < df[nmdbtag[i]].count()): 
+         if(0 < dfCur[nmdbtag[i]+'Ith'].count()): 
             axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
 
 
@@ -457,7 +478,7 @@ def main(argv):
          # axes.set_ylim(yminI,ymaxI)
       axes.set_ylim(yminI,ymaxI)
       # axes.set_ylim(yminI,ymaxI-0.001)
-      axes.set_ylabel('Rate increase [%]\n(3-min tr. moving average)',fontsize=fontsize+1)
+      axes.set_ylabel('Rate increase [%]\n3-min moving average',fontsize=fontsize+1)
       # axes.axhline(y=dfCur.iloc[-1]['Status'],linewidth=0.5,linestyle='-',color='red')
       # axes.axhline(y=Level,linewidth=0.5,linestyle='-',color='red')
 
@@ -480,25 +501,36 @@ def main(argv):
       # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
       # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=0)
       # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
-      axesal.plot(dfStatus.index.values,3*np.ones(len(dfStatus)),'o',color='red',label=Status[3])
-      dfStatus = dfCur[dfCur['Status']==2]
-      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
-      axesal.plot(dfStatus.index.values,2*np.ones(len(dfStatus)),'o',color='orange',label=Status[2])
-      dfStatus = dfCur[dfCur['Status']==1]
-      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
-      axesal.plot(dfStatus.index.values,1*np.ones(len(dfStatus)),'o',color='blue',label=Status[1])
-      dfStatus = dfCur[dfCur['Status']==0]
-      # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
-      # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
-      # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
-      axesal.plot(dfStatus.index.values,0*np.ones(len(dfStatus)),'o',color='gray',label=Status[0])
-      axesal.set_ylim(0,3.75)
-      # axesal.set_ylabel('Alarm Level',fontsize=fontsize+1)
-      axesal.set_ylabel('Alarm Level',fontsize=fontsize)
+      if networkAwareAlert :
+         # axesal.bar(df.index.values, df['Bartol_Above'], label='Bartol Simpson')
+         # axesal.plot(df.index.values, df['Bartol_Above'], label='Bartol Simpson')
+         axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above'],dfCur['Intl_Above']] , labels=['Current', 'Full Simpson', 'International'])
+         # axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above']] , labels=['Bartol Simpson', 'Extended Simpson'])
+         # axesal.bar(dfCur.index.values, dfCur['Bartol_Above'],label='Bartol Simpson')
+         # axesal.bar(df.index.values, df['Bartol_Above'], bottom=df['Bartol_Above'], label='Extended Simpson')
+         # axesal.bar(df.index.values, df['Bartol_Above'], bottom=df['Bartol_Above']+df['Extended_Above'], label='International')
+
+      else :
+         
+         axesal.plot(dfStatus.index.values,3*np.ones(len(dfStatus)),'o',color='red',label=Status[3])
+         dfStatus = dfCur[dfCur['Status']==2]
+         # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+         # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+         # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
+         axesal.plot(dfStatus.index.values,2*np.ones(len(dfStatus)),'o',color='orange',label=Status[2])
+         dfStatus = dfCur[dfCur['Status']==1]
+         # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+         # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+         # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
+         axesal.plot(dfStatus.index.values,1*np.ones(len(dfStatus)),'o',color='blue',label=Status[1])
+         dfStatus = dfCur[dfCur['Status']==0]
+         # plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
+         # plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
+         # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
+         axesal.plot(dfStatus.index.values,0*np.ones(len(dfStatus)),'o',color='gray',label=Status[0])
+         axesal.set_ylim(0,3.75)
+         # axesal.set_ylabel('Alarm Level',fontsize=fontsize+1)
+         axesal.set_ylabel('Alarm Level',fontsize=fontsize)
 
       plt.tick_params(axis='x', which='major', labelsize=0,direction='in',length=6)
       plt.tick_params(axis='x', which='minor', labelsize=0,direction='in',length=3)
