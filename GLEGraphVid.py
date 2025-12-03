@@ -20,6 +20,7 @@
 # 1.7.0 Change in stations, handling of not in alert and tickmarks
 # 1.8.0 Added different NM network awareness
 # 1.9.0 Step plot for network aware. Option to exclude rates plot
+# 1.10.0 Interpret new GOES data format
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -217,26 +218,51 @@ def main(argv):
 
    lineGP=453
    if os.path.isfile(fileGOESProton):
-      lineGPoff = -5
-      with open(fileGOESProton,'r') as offFile:
-         for l in offFile.readlines()[lineGP+lineGPoff-1:lineGP+5]:
-            if 'data' in l:
-               lineGP+=lineGPoff
-               # print(lineGP) #DEBUG
-               break
-            lineGPoff+=1
-      # sys.exit() #DEBUG
+      if ('GOES' in fileGOESProton):
+         dfGPin = pd.read_csv(fileGOESProton,
+                        sep=',',date_format='%y-%m-%d %H:%M:%S.%f',parse_dates=['time_tag'],
+                        index_col=0, na_values=np.nan)
+                        # usecols=[26,30])
+                        # usecols=['p3_flux_ic','p7_flux_ic'])
+         dfGPin.index = pd.to_datetime(dfGPin.index).tz_localize(None)
+         # print(dfGPin.info(verbose=True, show_counts=True))  #DEBUG
+         # dfGP= pd.DataFrame(index=dfGPin.loc[~dfGPin.index.duplicated(keep='first'), :].index.values)
+         dfGP = dfGPin['>=10 MeV'==dfGPin['energy']]
+         dfGP = dfGP.drop(['satellite','energy'], axis=1)
+         dfGP=dfGP.loc[~dfGP.index.duplicated(keep='first'), :]
+         dfGP.columns=['p3_flux_ic']
 
-      dfGP = pd.read_csv(fileGOESProton,
-                     sep=',',date_format='%y-%m-%d %H:%M:%S.%f',parse_dates=['time_tag'],
-                     index_col=0, skiprows=lineGP, na_values=np.nan)
-                     # usecols=[26,30])
-                     # usecols=['p3_flux_ic','p7_flux_ic'])
-      dfGP.index = pd.to_datetime(dfGP.index)
+         dfGPp7 = dfGPin['>=100 MeV'==dfGPin['energy']]
+         dfGPp7=dfGPp7.loc[~dfGPp7.index.duplicated(keep='first'), :]
 
-      for c in ['e1_flux_ic','e2_flux_ic','e3_flux_ic','p1_flux','p2_flux','p3_flux','p4_flux','p5_flux','p6_flux','p7_flux','a1_flux','a2_flux','a3_flux','a4_flux','a5_flux','a6_flux','p1_flux_c','p2_flux_c','p3_flux_c','p4_flux_c','p5_flux_c','p6_flux_c','p7_flux_c','p1_flux_ic','p2_flux_ic','p4_flux_ic','p5_flux_ic','p6_flux_ic']:
-         dfGP=dfGP.drop(columns=c) #drop all but p3_flux_ic, p7_flux_ic
-      dfGP = dfGP[startTime:endTime]
+         dfGP['p7_flux_ic'] = dfGPp7['flux']
+
+         print(dfGP)  #DEBUG
+         
+
+         # print(dfGP.info(verbose=True, show_counts=True))  #DEBUG
+         # sys.exit() #DEBUG
+      
+      else:
+         lineGPoff = -5
+         with open(fileGOESProton,'r') as offFile:
+            for l in offFile.readlines()[lineGP+lineGPoff-1:lineGP+5]:
+               if 'data' in l:
+                  lineGP+=lineGPoff
+                  # print(lineGP) #DEBUG
+                  break
+               lineGPoff+=1
+
+         dfGP = pd.read_csv(fileGOESProton,
+                        sep=',',date_format='%y-%m-%d %H:%M:%S.%f',parse_dates=['time_tag'],
+                        index_col=0, skiprows=lineGP, na_values=np.nan)
+                        # usecols=[26,30])
+                        # usecols=['p3_flux_ic','p7_flux_ic'])
+         dfGP.index = pd.to_datetime(dfGP.index)
+
+         for c in ['e1_flux_ic','e2_flux_ic','e3_flux_ic','p1_flux','p2_flux','p3_flux','p4_flux','p5_flux','p6_flux','p7_flux','a1_flux','a2_flux','a3_flux','a4_flux','a5_flux','a6_flux','p1_flux_c','p2_flux_c','p3_flux_c','p4_flux_c','p5_flux_c','p6_flux_c','p7_flux_c','p1_flux_ic','p2_flux_ic','p4_flux_ic','p5_flux_ic','p6_flux_ic']:
+            dfGP=dfGP.drop(columns=c) #drop all but p3_flux_ic, p7_flux_ic
+         dfGP = dfGP[startTime:endTime]
       lenGP=len(dfGP)
       # print(dfGP[dfGP['p3_flux_ic']>=10].index[0]) #DEBUG
       # print(dfGP[dfGP['p3_flux_ic']>=100].index[0]) #DEBUG
@@ -245,30 +271,58 @@ def main(argv):
       # print(alarmLines) #DEBUG
       # print(dfGP)  #DEBUG
       # print(dfGP.info(verbose=True, show_counts=True))  #DEBUG
-   # sys.exit() #DEBUG
+      # sys.exit() #DEBUG
 
    lineX=117
    if os.path.isfile(fileGOESXray):
-      lineXoff = -5
-      with open(fileGOESXray,'r') as offFile:
-         for l in offFile.readlines()[lineX+lineXoff-1:lineX+5]:
-            if 'data' in l:
-               lineX+=lineXoff
-               # print(lineX) #DEBUG
-               break
-            lineXoff+=1
-      # sys.exit() #DEBUG
+      if ('GOES' in fileGOESXray):
+         dfGXin = pd.read_csv(fileGOESXray,
+                        sep=',',date_format='%y-%m-%d %H:%M:%S.%f',parse_dates=['time_tag'],
+                        index_col=0, na_values=np.nan)
+                        # usecols=[26,30])
+                        # usecols=['p3_flux_ic','p7_flux_ic'])
+         dfGXin.index = pd.to_datetime(dfGXin.index).tz_localize(None)
+         # print(dfGPin.info(verbose=True, show_counts=True))  #DEBUG
+         # dfGP= pd.DataFrame(index=dfGPin.loc[~dfGPin.index.duplicated(keep='first'), :].index.values)
+         dfGX = dfGXin['0.05-0.4nm'==dfGXin['energy']]
+         dfGX=dfGX.loc[~dfGX.index.duplicated(keep='first'), :]
+         dfGX = dfGX.drop(['satellite','observed_flux','electron_correction','electron_contaminaton','energy'], axis=1)
+         dfGX.columns=['xs']
+         # print(dfGX)  #DEBUG
 
-      dfGX = pd.read_csv(fileGOESXray,
-                     sep=',',date_format='%y-%m-%d %H:%M:%S.%f',parse_dates=['time_tag'],
-                     index_col=0, skiprows=lineX, na_values=np.nan)
-                     # usecols=[26,30])
-                     # usecols=['p3_flux_ic','p7_flux_ic'])
-      dfGX.index = pd.to_datetime(dfGX.index)
+         dfGXl = dfGXin['0.1-0.8nm'==dfGXin['energy']]
+         dfGXl=dfGXl.loc[~dfGXl.index.duplicated(keep='first'), :]
+         # print(dfGXl)  #DEBUG
 
-      # for c in ['e1_flux_ic','e2_flux_ic','e3_flux_ic','p1_flux','p2_flux','p3_flux','p4_flux','p5_flux','p6_flux','p7_flux','a1_flux','a2_flux','a3_flux','a4_flux','a5_flux','a6_flux','p1_flux_c','p2_flux_c','p3_flux_c','p4_flux_c','p5_flux_c','p6_flux_c','p7_flux_c','p1_flux_ic','p2_flux_ic','p4_flux_ic','p5_flux_ic','p6_flux_ic']:
-      #    dfGP=dfGP.drop(columns=c) #drop all but p3_flux_ic, p7_flux_ic
-      dfGX = dfGX[startTime:endTime]
+         dfGX['xl'] = dfGXl['flux']
+         dfGX=dfGX.mask(0.0==dfGX)
+         # print(dfGX)  #DEBUG
+
+         
+
+         # print(dfGP.info(verbose=True, show_counts=True))  #DEBUG
+         # sys.exit() #DEBUG
+      else:
+         lineXoff = -5
+         with open(fileGOESXray,'r') as offFile:
+            for l in offFile.readlines()[lineX+lineXoff-1:lineX+5]:
+               if 'data' in l:
+                  lineX+=lineXoff
+                  # print(lineX) #DEBUG
+                  break
+               lineXoff+=1
+         # sys.exit() #DEBUG
+
+         dfGX = pd.read_csv(fileGOESXray,
+                        sep=',',date_format='%y-%m-%d %H:%M:%S.%f',parse_dates=['time_tag'],
+                        index_col=0, skiprows=lineX, na_values=np.nan)
+                        # usecols=[26,30])
+                        # usecols=['p3_flux_ic','p7_flux_ic'])
+         dfGX.index = pd.to_datetime(dfGX.index)
+
+         # for c in ['e1_flux_ic','e2_flux_ic','e3_flux_ic','p1_flux','p2_flux','p3_flux','p4_flux','p5_flux','p6_flux','p7_flux','a1_flux','a2_flux','a3_flux','a4_flux','a5_flux','a6_flux','p1_flux_c','p2_flux_c','p3_flux_c','p4_flux_c','p5_flux_c','p6_flux_c','p7_flux_c','p1_flux_ic','p2_flux_ic','p4_flux_ic','p5_flux_ic','p6_flux_ic']:
+         #    dfGP=dfGP.drop(columns=c) #drop all but p3_flux_ic, p7_flux_ic
+         dfGX = dfGX[startTime:endTime]
       lenGX=len(dfGX)
       # print(dfGX)  #DEBUG
       # print(dfGX.info(verbose=True, show_counts=True))  #DEBUG
@@ -370,13 +424,15 @@ def main(argv):
       # if (1.-10*limMargin)*dfGX['xs'].min()<yminGX: yminGX=(1.-10*limMargin)*dfGX['xs'].min()
       if dfGX['xl'].max()>ymaxGX: ymaxGX=dfGX['xl'].max()
       if dfGX['xl'].min()<yminGX: yminGX=dfGX['xl'].min()
+      if dfGX['xs'].max()>ymaxGX: ymaxGX=dfGX['xs'].max()
+      if dfGX['xs'].min()<yminGX: yminGX=dfGX['xs'].min()
       # if (1.+limMargin)*dfGX['xl'].max()>ymaxGX: ymaxGX=(1.+limMargin)*dfGX['xl'].max()
       # if (1.-limMargin)*dfGX['xl'].min()<yminGX: yminGX=(1.-limMargin)*dfGX['xl'].min()
       ydeltaGX=math.log10(ymaxGX)-math.log10(yminGX)
       ymaxGX=10**(math.log10(ymaxGX)+limMargin*ydeltaGX)
       yminGX=10**(math.log10(yminGX)-limMargin*ydeltaGX)
-      if 2e-7>yminGX :
-         yminGX=2e-7
+      # if 2e-7>yminGX :
+      #    yminGX=2e-7
       pG+=1
 
    if networkAwareAlert :
@@ -416,9 +472,56 @@ def main(argv):
          # print(dfGXCur)  #DEBUG
          # print(dfGXCur.info(verbose=True, show_counts=True))  #DEBUG
 
+      # axes = fig.add_subplot(5,1,(4,5),sharex=axesT)
+      axes = fig.add_subplot(pAll,1,(pAll-1,pAll))
+
+
+      for i in range(N):
+         axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
+      for i in range(N,Nall):
+         if(0 < dfCur[nmdbtag[i]+'Ith'].count()): 
+            axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
+
+
+      axes.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
+      axes.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
+      axes.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d\n%H:%M'))
+      
+
+      # plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='in',length=6)
+      # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='out',length=6)
+      plt.tick_params(axis='x', which='minor', labelsize=0,direction='out',length=3)
+      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
+
+      ###axes.set_xlim(now - timedelta(hours=8),now)
+      axes.set_xlim(startTime,endTime)
+      # if (0==yminI):
+      #    axes.set_ylim(yminI,(1+limMargin)*ymaxI)
+      # else:
+      #    axes.set_ymargin(limMargin)
+         # axes.set_ylim(yminI,ymaxI)
+      axes.set_ylim(yminI,ymaxI)
+      # axes.set_ylim(yminI,ymaxI-0.001)
+      axes.set_ylabel('Rate increase [%]\n3-min moving average',fontsize=fontsize+1)
+      # axes.axhline(y=dfCur.iloc[-1]['Status'],linewidth=0.5,linestyle='-',color='red')
+      # axes.axhline(y=Level,linewidth=0.5,linestyle='-',color='red')
+      
+
+      plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
+      plt.legend(bbox_to_anchor=(1.01,0.525), loc="center left", borderaxespad=0,
+               fontsize=fontsize,labelspacing=0.0,frameon=False)
+      #plt.title('GLE Alarm from Bartol Neutron Monitors - Last update: {0:s} {1:s} {2:s} UT'.format(now.strftime("%Y-%m-%d"),r'$@$',now.strftime("%H:%M:%S")),fontsize=fontsize)
+      # plt.title('GLE Alarm from Bartol Neutron Monitors - Last update: {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
+
+      axes.text(axes.get_xlim()[1] + 0.19*(axes.get_xlim()[1] -axes.get_xlim()[0] ) ,
+               axes.get_ylim()[0]+ 0.0*(axes.get_ylim()[1] -axes.get_ylim()[0] ),
+               Notused, horizontalalignment='left', fontsize=fontsize-2,zorder=10)
+
       if (ratePlot):
          # axesT = fig.add_subplot(5,1,(2,3))
-         axesT = fig.add_subplot(pAll,1,(pAll-3,pAll-2))
+         axesT = fig.add_subplot(pAll,1,(pAll-3,pAll-2),sharex=axes)
          # axesT = fig.add_subplot(pAll,1,(pAll-2,pAll-1))
 
          for i in range(N):
@@ -436,8 +539,8 @@ def main(argv):
          # plt.tick_params(axis='y', which='major', labelsize=0,direction='in',length=6)
          # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
-         axesT.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
-         axesT.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
+         # axesT.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
+         # axesT.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
          # axesT.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d\n%H:%M'))
          # axesT.set_xlim(now - timedelta(hours=12),now)
          axesT.set_xlim(startTime,endTime)
@@ -459,51 +562,6 @@ def main(argv):
                   fontsize=fontsize,labelspacing=0.0,frameon=False)
          # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
          # plt.title('GLE Alarm from Bartol Neutron Monitors - {0:s} {1:s} {2:s} UT'.format(df.index.values[r],r'$@$',r.strftime("%H:%M:%S")),fontsize=fontsize)
-
-      # axes = fig.add_subplot(5,1,(4,5),sharex=axesT)
-      axes = fig.add_subplot(pAll,1,(pAll-1,pAll))
-
-
-      for i in range(N):
-         axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
-      for i in range(N,Nall):
-         if(0 < dfCur[nmdbtag[i]+'Ith'].count()): 
-            axes.plot(dfCur.index.values,100.*(dfCur[nmdbtag[i]+'Ith']-1.),'-',linewidth=0.8,label='{0:s}'.format(Labels[i]))
-
-
-
-      # plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='in',length=6)
-      # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
-      plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='out',length=6)
-      plt.tick_params(axis='x', which='minor', labelsize=0,direction='out',length=3)
-      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
-      # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
-
-      axes.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
-      axes.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
-      axes.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d\n%H:%M'))
-      ###axes.set_xlim(now - timedelta(hours=8),now)
-      axes.set_xlim(startTime,endTime)
-      # if (0==yminI):
-      #    axes.set_ylim(yminI,(1+limMargin)*ymaxI)
-      # else:
-      #    axes.set_ymargin(limMargin)
-         # axes.set_ylim(yminI,ymaxI)
-      axes.set_ylim(yminI,ymaxI)
-      # axes.set_ylim(yminI,ymaxI-0.001)
-      axes.set_ylabel('Rate increase [%]\n3-min moving average',fontsize=fontsize+1)
-      # axes.axhline(y=dfCur.iloc[-1]['Status'],linewidth=0.5,linestyle='-',color='red')
-      # axes.axhline(y=Level,linewidth=0.5,linestyle='-',color='red')
-
-      plt.grid(axis='both',which='both',linewidth=0.5,linestyle=':',color='gray')
-      plt.legend(bbox_to_anchor=(1.01,0.525), loc="center left", borderaxespad=0,
-               fontsize=fontsize,labelspacing=0.0,frameon=False)
-      #plt.title('GLE Alarm from Bartol Neutron Monitors - Last update: {0:s} {1:s} {2:s} UT'.format(now.strftime("%Y-%m-%d"),r'$@$',now.strftime("%H:%M:%S")),fontsize=fontsize)
-      # plt.title('GLE Alarm from Bartol Neutron Monitors - Last update: {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize)
-
-      axes.text(axes.get_xlim()[1] + 0.19*(axes.get_xlim()[1] -axes.get_xlim()[0] ) ,
-               axes.get_ylim()[0]+ 0.0*(axes.get_ylim()[1] -axes.get_ylim()[0] ),
-               Notused, horizontalalignment='left', fontsize=fontsize-2,zorder=10)
 
 
       # axesal = fig.add_subplot(5,1,(1,1),sharex=axes)
@@ -562,6 +620,7 @@ def main(argv):
       plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
                fontsize=fontsize,labelspacing=0.5,frameon=False)
 
+      # print(axes.get_xticklabels())  #DEBUG
       if lenGP > 0:
          # axesGP = fig.add_subplot(pAll,1,(pAll-5,pAll-5),sharex=axesT)
          axesGP = fig.add_subplot(pAll,1,(pAll-(3+pT),pAll-(3+pT)),sharex=axes)
@@ -595,7 +654,7 @@ def main(argv):
          plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
                fontsize=fontsize,labelspacing=0.5,frameon=False)
          # print(ymaxGP) #DEBUG
-         axesGP.set_xticklabels([])
+         # axesGP.set_xticklabels([])
       if lenGX > 0:
             # axes = fig.add_subplot(23,1,(1,2))
             # axes.plot(dfx['time_tag2'].to_numpy(),dfx['flux'].to_numpy(),'-',color='k')
@@ -615,7 +674,7 @@ def main(argv):
    
          # axesGX = fig.add_subplot(pAll,1,(pAll-(4+pG),pAll-(4+pG)),sharex=axesT)
          axesGX = fig.add_subplot(pAll,1,(pAll-(2+pT+pG),pAll-(2+pT+pG)),sharex=axes)
-         # axesGX.plot(dfGXCur.index.values,dfGXCur['xs'],color='green',label='XS')
+         axesGX.plot(dfGXCur.index.values,dfGXCur['xs'],color='green',label='XS')
          axesGX.plot(dfGXCur.index.values,dfGXCur['xl'],color='k',label='XL')
          # axesGP.plot(df500['time_tag2'].to_numpy(),df500['flux'].to_numpy(),color='pink',label='>=500 MeV')
          # axesGX.set_ymargin(10*limMargin)
@@ -630,14 +689,14 @@ def main(argv):
          plt.grid(axis='x',which='minor',linewidth=0.5,linestyle=':',color='gray')
          plt.grid(axis='y',which='major',linewidth=0.5,linestyle=':',color='gray')
          # plt.legend(loc='upper right',fontsize=fontsize,ncol=1)
-         # plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
-               # fontsize=fontsize,labelspacing=0.5,frameon=False)
+         plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
+               fontsize=fontsize,labelspacing=0.5,frameon=False)
          # print(pAll) #DEBUG
          # print(axesGX.get_yticks()) #DEBUG
          # print(axesGX.get_yticklabels()) #DEBUG
          # sys.exit() #DEBUG
 
-         axesGX.set_xticklabels([])
+         # axesGX.set_xticklabels([])
 
       # axes.axhline(y=4,color='red')
       axes.fill_between(x=df.index.values, y1=yminI, y2=4.0, color='lightgrey', alpha=0.5)
@@ -653,10 +712,11 @@ def main(argv):
       if (3 > dfCur.iloc[-1]['Status']) :
          baselines = [df.index[r-85],df.index[r-10] ]
 
+      # print(axes.get_xticklabels())  #DEBUG
+      # if (ratePlot):axesT.set_xticklabels([])
 
-      if (ratePlot):axesT.set_xticklabels([])
-      axesal.set_xticklabels([])
-      axesal.set_yticks([])
+      # axesal.set_xticklabels([])
+      # axesal.set_yticks([])
       # axesal.set_yticklabels([])
       # plt.yticks(np.arange(0, 4, 1.0))
 
@@ -666,16 +726,17 @@ def main(argv):
       # plt.legend(bbox_to_anchor=(1.01,0.48), loc="center left", borderaxespad=0,
       #          fontsize=fontsize,labelspacing=0.5,frameon=False)
 
-      axesal.text(axesal.get_xlim()[0] + 0.02*(axesal.get_xlim()[1] -axesal.get_xlim()[0] ) ,
-               axesal.get_ylim()[1]- 0.15*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
-               # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
-               "Current: ", horizontalalignment='left', fontsize=fontsize+1,zorder=10)
+      # axesal.text(axesal.get_xlim()[0] + 0.02*(axesal.get_xlim()[1] -axesal.get_xlim()[0] ) ,
+      #          axesal.get_ylim()[1]- 0.15*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+      #          # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+      #          "Current: ", horizontalalignment='left', fontsize=fontsize+1,zorder=10)
 
-      axesal.text(axesal.get_xlim()[0] + 0.11*(axesal.get_xlim()[1] -axesal.get_xlim()[0] ) ,
-               axesal.get_ylim()[1]- 0.15*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
-               # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
-               "{0:s}".format(Status[int(LastStatus)]), horizontalalignment='left',color=Statuscol[int(LastStatus)], fontsize=fontsize+1,zorder=10)
+      # axesal.text(axesal.get_xlim()[0] + 0.11*(axesal.get_xlim()[1] -axesal.get_xlim()[0] ) ,
+      #          axesal.get_ylim()[1]- 0.15*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+      #          # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
+      #          "{0:s}".format(Status[int(LastStatus)]), horizontalalignment='left',color=Statuscol[int(LastStatus)], fontsize=fontsize+1,zorder=10)
 
+      axesal.set_ylabel("Number of stations\nabove threshold",fontsize=fontsize,multialignment='center')
 
       # axesal.text(axesal.get_xlim()[0], axesal.get_ylim()[1]+ 0.017*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
             # 'Last update: {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize+1,horizontalalignment='left')
@@ -685,6 +746,11 @@ def main(argv):
 
       # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
       # print(axesT.yaxis.get_data_interval(),axes.yaxis.get_data_interval(),axesGP.yaxis.get_data_interval(),axesGX.yaxis.get_data_interval()) #DEBUG
+      # axesLabels = axes.get_xticklabels()
+      # for lbl in axesLabels :
+      #    lbl.set_visible(True)
+      # print(axes.get_xticklabels())
+
 
       # fig.savefig('{0:s}/GLE_Alarm.png'.format(Outpath))
       fig.savefig('{0:s}/{1:s}/{2:04d}.png'.format(Outpath, startTime.strftime("%Y%m%d"), frameNum))
