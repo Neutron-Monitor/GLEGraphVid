@@ -21,6 +21,7 @@
 # 1.8.0 Added different NM network awareness
 # 1.9.0 Step plot for network aware. Option to exclude rates plot
 # 1.10.0 Interpret new GOES data format
+# 1.11.0 Formatting changes for GLE77
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -47,6 +48,9 @@ import matplotlib.gridspec as gridspec
 
 import smtplib
 from email.message import EmailMessage
+from cycler import cycler
+
+
 
 #######################################
 ###Set Latex font for figures
@@ -76,11 +80,13 @@ def main(argv):
    Inpath = '.'      #input path
    Outpath = '.'     #output path
    # urlalarm='./GLE_Alarm.png' #DEBUG
-   initMinutes=90
+   # initMinutes=90
+   initMinutes=1
    frameNum = 0
    fileGOESProton =''
    fileGOESXray ='' 
-   showBaselines = True
+   showBaselines = False
+   alarmLineGPShow = True
    xTickMajorHours = 1
 
    ########################
@@ -191,6 +197,8 @@ def main(argv):
          Fact.append(Fact.pop(i))
          N-=1
       else : i+=1
+   colorsPlot = plt.colormaps["tab20"](np.linspace(0, 1, Nall))
+   plt.rcParams["axes.prop_cycle"] = cycler(color=colorsPlot)
    # print(nm)
    # print(nmdbtag)
    # print(Labels)
@@ -206,7 +214,8 @@ def main(argv):
    print('Graph x-axis from',startTime, 'to', endTime)
 
    df = df[startTime:endTime]
-   # print(df)  #DEBUG
+   # df = df[startTime:(endTime+timedelta(minutes=1))]
+   print(df)  #DEBUG
    # print(df.info(verbose=True, show_counts=True))  #DEBUG
 
    alarmLines = [df[df['Status']>=1].index[0],df[df['Status']>=2].index[0],df[df['Status']>=3].index[0]]
@@ -444,7 +453,7 @@ def main(argv):
       df['Intl_Above']= df[intlFlags].sum(axis=1)
       print(df['Intl_Above'].max())  #DEBUG
       ymaxAl = df[['Bartol_Above','Extended_Above','Intl_Above']].sum(axis=1).max()
-      ymaxAl = max(ymaxAl,3)
+      ymaxAl = max(ymaxAl,4)
       print("Max Flags = {0:d}".format(ymaxAl))  #DEBUG
 
       df.to_csv('./GLETemp.csv')  #DEBUG
@@ -453,15 +462,22 @@ def main(argv):
    pAll=3+pG+pT
    LastStatus=0
    fig=plt.figure(figsize=(14, 11), dpi=80)
-   baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
+   if showBaselines: baselines = [df.index[initMinutes-85],df.index[initMinutes-10] ]
    
    # print(yminT,ymaxT,yminI,ymaxI,yminGP,ymaxGP,yminGX,ymaxGX) #DEBUG
-   
+   # print(df.index[(endMinutes)-startMinutes]) #DEBUG
 
-   for r in range(initMinutes, endMinutes-startMinutes) :
+   # print(df) #DEBUG
+   # print (df.index[0],df.index[-1]) #DEBUG
+   for r in range(initMinutes, (endMinutes+1)-startMinutes) :
+   # for r in range(initMinutes, endMinutes-startMinutes) :
+      # print(df.index[r]) #DEBUG
    # for r in range(endMinutes-startMinutes-1, endMinutes-startMinutes) :
 
-      dfCur=df.iloc[0:r]
+      # dfCur=df.iloc[0:r]
+      dfCur=df.iloc[0:(r+1)]
+      # print(len(dfCur)) #DEBUG
+      # print(dfCur.index[-1]) #DEBUG
 
       if lenGP>0:
          dfGPCur = dfGP[startTime:dfCur.index.values[-1]]
@@ -496,7 +512,8 @@ def main(argv):
       # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
       ###axes.set_xlim(now - timedelta(hours=8),now)
-      axes.set_xlim(startTime,endTime)
+      # axes.set_xlim(startTime,endTime)
+      axes.set_xlim(df.index[0],df.index[-1])
       # if (0==yminI):
       #    axes.set_ylim(yminI,(1+limMargin)*ymaxI)
       # else:
@@ -543,7 +560,7 @@ def main(argv):
          # axesT.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
          # axesT.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d\n%H:%M'))
          # axesT.set_xlim(now - timedelta(hours=12),now)
-         axesT.set_xlim(startTime,endTime)
+         # axesT.set_xlim(startTime,endTime)
          # if (0==yminT):
          #    axesT.set_ylim(yminT,(1.+limMargin)*ymaxT)
          # else:
@@ -581,7 +598,8 @@ def main(argv):
          axesal.fill_between(x=df.index.values, y1=0.5, y2=1.5, color='lightblue', alpha=0.2)
          axesal.fill_between(x=df.index.values, y1=1.5, y2=2.5, color='lightyellow', alpha=0.2)
          axesal.fill_between(x=df.index.values, y1=2.5, y2=ymaxAl+0.75, color='pink', alpha=0.2)
-         axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above'],dfCur['Intl_Above']] , step="post", labels=['Current', 'Full Simpson', 'International'])
+         # axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above'],dfCur['Intl_Above']] , step="post", labels=['Current', 'Full Simpson', 'International'])
+         axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above'],dfCur['Intl_Above']] , step="post", labels=['Prototype', '+ Simpson Network', '+ Mawson'])
          # axesal.stackplot(dfCur.index.values, [dfCur['Bartol_Above'],dfCur['Extended_Above']] , labels=['Bartol Simpson', 'Extended Simpson'])
          # axesal.bar(dfCur.index.values, dfCur['Bartol_Above'],label='Bartol Simpson')
          # axesal.bar(df.index.values, df['Bartol_Above'], bottom=df['Bartol_Above'], label='Extended Simpson')
@@ -655,6 +673,13 @@ def main(argv):
                fontsize=fontsize,labelspacing=0.5,frameon=False)
          # print(ymaxGP) #DEBUG
          # axesGP.set_xticklabels([])
+         if alarmLineGPShow :
+   
+            alarmLineGP=datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29)
+            if (dfCur.index[-1]>=alarmLineGP):
+               # print(alarmLineGP) #DEBUG
+
+               axesGP.axvline(datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29),color=alarmColors[2])
       if lenGX > 0:
             # axes = fig.add_subplot(23,1,(1,2))
             # axes.plot(dfx['time_tag2'].to_numpy(),dfx['flux'].to_numpy(),'-',color='k')
@@ -709,8 +734,8 @@ def main(argv):
          for i in range(len(baselines)):
             axes.axvline(baselines[i],color='green')
             if (ratePlot):axesT.axvline(baselines[i],color='green')
-      if (3 > dfCur.iloc[-1]['Status']) :
-         baselines = [df.index[r-85],df.index[r-10] ]
+         if (3 > dfCur.iloc[-1]['Status']) :
+            baselines = [df.index[r-85],df.index[r-10] ]
 
       # print(axes.get_xticklabels())  #DEBUG
       # if (ratePlot):axesT.set_xticklabels([])
