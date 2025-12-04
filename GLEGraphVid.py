@@ -22,6 +22,7 @@
 # 1.9.0 Step plot for network aware. Option to exclude rates plot
 # 1.10.0 Interpret new GOES data format
 # 1.11.0 Formatting changes for GLE77
+# 1.12.0 Fixed GOES y limit in some cases. Colaborative changes for GLE77
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -157,7 +158,7 @@ def main(argv):
    intlFlags = list(map(lambda x: x + 'F', nmdbtag))
    intlFlags = list(filter(lambda x: x not in bartolFlags, intlFlags))
    intlFlags = list(filter(lambda x: x not in extendedFlags, intlFlags))
-   print(intlFlags)  #DEBUG
+   # print(intlFlags)  #DEBUG
 
    #History from Makejson_ql.py
    #History= [0.597135,(0.598/0.94696),1.35333,0.59686,0.54518,0.57732*0.6,0.705,0.52308,0.52308]
@@ -215,7 +216,7 @@ def main(argv):
 
    df = df[startTime:endTime]
    # df = df[startTime:(endTime+timedelta(minutes=1))]
-   print(df)  #DEBUG
+   # print(df)  #DEBUG
    # print(df.info(verbose=True, show_counts=True))  #DEBUG
 
    alarmLines = [df[df['Status']>=1].index[0],df[df['Status']>=2].index[0],df[df['Status']>=3].index[0]]
@@ -236,6 +237,7 @@ def main(argv):
          dfGPin.index = pd.to_datetime(dfGPin.index).tz_localize(None)
          # print(dfGPin.info(verbose=True, show_counts=True))  #DEBUG
          # dfGP= pd.DataFrame(index=dfGPin.loc[~dfGPin.index.duplicated(keep='first'), :].index.values)
+         dfGPin = dfGPin[startTime:endTime]
          dfGP = dfGPin['>=10 MeV'==dfGPin['energy']]
          dfGP = dfGP.drop(['satellite','energy'], axis=1)
          dfGP=dfGP.loc[~dfGP.index.duplicated(keep='first'), :]
@@ -245,8 +247,9 @@ def main(argv):
          dfGPp7=dfGPp7.loc[~dfGPp7.index.duplicated(keep='first'), :]
 
          dfGP['p7_flux_ic'] = dfGPp7['flux']
+         # dfGP = dfGP[startTime:endTime]
 
-         print(dfGP)  #DEBUG
+         # print(dfGP)  #DEBUG
          
 
          # print(dfGP.info(verbose=True, show_counts=True))  #DEBUG
@@ -293,6 +296,7 @@ def main(argv):
          dfGXin.index = pd.to_datetime(dfGXin.index).tz_localize(None)
          # print(dfGPin.info(verbose=True, show_counts=True))  #DEBUG
          # dfGP= pd.DataFrame(index=dfGPin.loc[~dfGPin.index.duplicated(keep='first'), :].index.values)
+         dfGXin = dfGXin[startTime:endTime]
          dfGX = dfGXin['0.05-0.4nm'==dfGXin['energy']]
          dfGX=dfGX.loc[~dfGX.index.duplicated(keep='first'), :]
          dfGX = dfGX.drop(['satellite','observed_flux','electron_correction','electron_contaminaton','energy'], axis=1)
@@ -305,6 +309,7 @@ def main(argv):
 
          dfGX['xl'] = dfGXl['flux']
          dfGX=dfGX.mask(0.0==dfGX)
+         # dfGX = dfGX[startTime:endTime]
          # print(dfGX)  #DEBUG
 
          
@@ -410,7 +415,8 @@ def main(argv):
       ymaxGP=1.
       yminGP=0.2
       pG+=1
-      # print(dfGP['p3_flux_ic'].max())
+      # print(dfGP[ dfGP['p3_flux_ic'] ==(dfGP['p3_flux_ic'].max())]) #DEBUG
+      # print(dfGP[ dfGP['p7_flux_ic'] ==(dfGP['p7_flux_ic'].max())]) #DEBUG
       if dfGP['p3_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p3_flux_ic'].max()
       if dfGP['p3_flux_ic'].min()<yminGP: yminGP=dfGP['p3_flux_ic'].min()
       if dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=dfGP['p7_flux_ic'].max()
@@ -420,11 +426,12 @@ def main(argv):
       # if (1.+limMargin)*dfGP['p7_flux_ic'].max()>ymaxGP: ymaxGP=(1.+limMargin)*dfGP['p7_flux_ic'].max()
       # if (1.-limMargin)*dfGP['p7_flux_ic'].min()<yminGP: yminGP=(1.-limMargin)*dfGP['p7_flux_ic'].min()
       ydeltaGP=math.log10(ymaxGP)-math.log10(yminGP)
-      print(ydeltaGP) #DEBUG
+      # print(yminGP, ymaxGP, ydeltaGP) #DEBUG
       ymaxGP=10**(math.log10(ymaxGP)+limMargin*ydeltaGP)
       yminGP=10**(math.log10(yminGP)-limMargin*ydeltaGP)
-      if 2e-3>yminGP :
-         yminGP=2e-3
+      # print(yminGP, ymaxGP, ydeltaGP) #DEBUG
+      # if 2e-3>yminGP :
+      #    yminGP=2e-3
 
    if lenGX>0:
       ymaxGX=1e-4
@@ -446,12 +453,12 @@ def main(argv):
 
    if networkAwareAlert :
       df['Bartol_Above']= df[bartolFlags].sum(axis=1)
-      print(df['Bartol_Above'].max())  #DEBUG
-      print(df['Bartol_Above'])  #DEBUG
+      # print(df['Bartol_Above'].max())  #DEBUG
+      # print(df['Bartol_Above'])  #DEBUG
       df['Extended_Above']= df[extendedFlags].sum(axis=1)
-      print(df['Extended_Above'].max())  #DEBUG
+      # print(df['Extended_Above'].max())  #DEBUG
       df['Intl_Above']= df[intlFlags].sum(axis=1)
-      print(df['Intl_Above'].max())  #DEBUG
+      # print(df['Intl_Above'].max())  #DEBUG
       ymaxAl = df[['Bartol_Above','Extended_Above','Intl_Above']].sum(axis=1).max()
       ymaxAl = max(ymaxAl,4)
       print("Max Flags = {0:d}".format(ymaxAl))  #DEBUG
@@ -676,7 +683,7 @@ def main(argv):
          if alarmLineGPShow :
    
             alarmLineGP=datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29)
-            if (dfCur.index[-1]>=alarmLineGP):
+            if (dfGPCur.index[-1]>=alarmLineGP):
                # print(alarmLineGP) #DEBUG
 
                axesGP.axvline(datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29),color=alarmColors[2])
