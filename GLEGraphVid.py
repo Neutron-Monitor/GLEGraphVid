@@ -23,6 +23,7 @@
 # 1.10.0 Interpret new GOES data format
 # 1.11.0 Formatting changes for GLE77
 # 1.12.0 Fixed GOES y limit in some cases. Colaborative changes for GLE77
+# 1.12.1 Changed labels on alarm graph. Colaborative changes for GLE77
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -452,6 +453,8 @@ def main(argv):
       pG+=1
 
    if networkAwareAlert :
+      # alarmYLabels = None
+      # alarmYLabelsInit = False
       df['Bartol_Above']= df[bartolFlags].sum(axis=1)
       # print(df['Bartol_Above'].max())  #DEBUG
       # print(df['Bartol_Above'])  #DEBUG
@@ -460,7 +463,7 @@ def main(argv):
       df['Intl_Above']= df[intlFlags].sum(axis=1)
       # print(df['Intl_Above'].max())  #DEBUG
       ymaxAl = df[['Bartol_Above','Extended_Above','Intl_Above']].sum(axis=1).max()
-      ymaxAl = max(ymaxAl,4)
+      ymaxAl = max(ymaxAl,3)
       print("Max Flags = {0:d}".format(ymaxAl))  #DEBUG
 
       df.to_csv('./GLETemp.csv')  #DEBUG
@@ -601,6 +604,28 @@ def main(argv):
          # axesal.bar(df.index.values, df['Bartol_Above'], label='Bartol Simpson')
          # axesal.plot(df.index.values, df['Bartol_Above'], label='Bartol Simpson')
          axesal.set_ylim(0,ymaxAl+0.75)
+         axesal.yaxis.set_major_locator(mticker.MultipleLocator(base=1))
+         # if not alarmYLabelsInit :
+         alarmYLabels = axesal.get_ymajorticklabels()
+         for lbl in alarmYLabels:
+            # print(lbl.get_text()) #DEBUG
+            lbl.set_verticalalignment('baseline')
+            if ('0' == lbl.get_text()):
+               lbl.set_text(Status[0])
+            if ('1' == lbl.get_text()):
+               lbl.set_text(Status[1])
+               lbl.set_color('blue')
+            if ('2' == lbl.get_text()):
+               lbl.set_text(Status[2])
+               lbl.set_color('orange')
+            if ('3' == lbl.get_text()):
+               lbl.set_text(Status[3])
+               lbl.set_color('red')
+         # print(alarmYLabels) #DEBUG
+         # alarmYLabelsInit = True
+         axesal.set_yticklabels(alarmYLabels)
+
+
          axesal.fill_between(x=df.index.values, y1=0, y2=0.5, color='lightgrey', alpha=0.2)
          axesal.fill_between(x=df.index.values, y1=0.5, y2=1.5, color='lightblue', alpha=0.2)
          axesal.fill_between(x=df.index.values, y1=1.5, y2=2.5, color='lightyellow', alpha=0.2)
@@ -685,6 +710,7 @@ def main(argv):
             alarmLineGP=datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29)
             if (dfGPCur.index[-1]>=alarmLineGP):
                # print(alarmLineGP) #DEBUG
+               print('GOES Alert {0:%H:%M}'.format(alarmLineGP)) #DEBUG
 
                axesGP.axvline(datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29),color=alarmColors[2])
       if lenGX > 0:
@@ -768,7 +794,8 @@ def main(argv):
       #          # axesal.get_ylim()[1]- 0.12*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
       #          "{0:s}".format(Status[int(LastStatus)]), horizontalalignment='left',color=Statuscol[int(LastStatus)], fontsize=fontsize+1,zorder=10)
 
-      axesal.set_ylabel("Number of stations\nabove threshold",fontsize=fontsize,multialignment='center')
+      # axesal.set_ylabel("Number of stations\nabove threshold",fontsize=fontsize,multialignment='center')
+      axesal.set_ylabel("#Stations above threshold",fontsize=fontsize,multialignment='center')
 
       # axesal.text(axesal.get_xlim()[0], axesal.get_ylim()[1]+ 0.017*(axesal.get_ylim()[1] -axesal.get_ylim()[0] ),
             # 'Last update: {0:s} UT'.format(dfCur.index.values[-1]),fontsize=fontsize+1,horizontalalignment='left')
