@@ -24,6 +24,7 @@
 # 1.11.0 Formatting changes for GLE77
 # 1.12.0 Fixed GOES y limit in some cases. Colaborative changes for GLE77
 # 1.12.1 Changed labels on alarm graph. Colaborative changes for GLE77
+# 1.12.2 PSM changes including a GOES Alert. Colaborative changes for GLE77
 """
 import glob
 from datetime import datetime, timedelta, timezone, date, time
@@ -510,15 +511,16 @@ def main(argv):
 
 
       axes.xaxis.set_major_locator(mdates.HourLocator(interval=xTickMajorHours))
-      axes.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*15)))
+      axes.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(0,xTickMajorHours*60,xTickMajorHours*10)))
       axes.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d\n%H:%M'))
+      axes.xaxis.set_minor_formatter(mdates.DateFormatter('%H:%M'))
       
 
       # plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='in',length=6)
       # plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
       plt.tick_params(axis='x', which='major', labelsize=fontsize+1,direction='out',length=6)
-      plt.tick_params(axis='x', which='minor', labelsize=0,direction='out',length=3)
-      plt.tick_params(axis='y', which='major', labelsize=fontsize,direction='in',length=6)
+      plt.tick_params(axis='x', which='minor', labelsize=fontsize+1,direction='out',length=3)
+      plt.tick_params(axis='y', which='major', labelsize=fontsize+1,direction='in',length=6)
       # plt.tick_params(axis='y', which='minor', labelsize=0,direction='in',length=3)
 
       ###axes.set_xlim(now - timedelta(hours=8),now)
@@ -713,6 +715,7 @@ def main(argv):
                print('GOES Alert {0:%H:%M}'.format(alarmLineGP)) #DEBUG
 
                axesGP.axvline(datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29),color=alarmColors[2])
+               axesGP.text(datetime.combine(startDay, datetime.min.time())+timedelta(hours=10,minutes=29),0.15,"SWPC Alert",color=alarmColors[2],fontsize=fontsize,rotation='vertical',horizontalalignment='right')
       if lenGX > 0:
             # axes = fig.add_subplot(23,1,(1,2))
             # axes.plot(dfx['time_tag2'].to_numpy(),dfx['flux'].to_numpy(),'-',color='k')
@@ -762,6 +765,8 @@ def main(argv):
       for i in range(len(alarmLines)):
          if dfCur.index.values[-1] >= alarmLines[i]:
             axes.axvline(alarmLines[i],color=alarmColors[i])
+            axes.text(alarmLines[i],0.98*axes.get_ylim()[1],Status[i+1],color=alarmColors[i],fontsize=fontsize,rotation='vertical',horizontalalignment='right',va='top')
+
             if (ratePlot): axesT.axvline(alarmLines[i],color=alarmColors[i])
       if showBaselines :
          for i in range(len(baselines)):
